@@ -17,7 +17,7 @@ var (
 
 	wowRealmUp = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "wow_realm_up",
-		Help: "Is the WoW server running (1 = up, 0 = down)",
+		Help: "Is the WoW realm running (1 = up, 0 = down)",
 	})
 )
 
