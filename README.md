@@ -27,10 +27,12 @@ A complete monitoring solution for MaNGOS Zero World of Warcraft private servers
 
 ## Quick Start
 
-### 1. Clone the Repository
+
+### 1. Clone and Setup
 ```bash
 git clone https://github.com/yourusername/WoW-mangos-zero-monitoring.git
 cd WoW-mangos-zero-monitoring
+./setup.sh  # Sets directory permissions
 ```
 
 ### 2. Configure Environment Variables
