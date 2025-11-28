@@ -5,7 +5,6 @@ server:
 
 ingester:
   lifecycler:
-    address: 127.0.0.1
     ring:
       kvstore:
         store: inmemory
@@ -13,24 +12,33 @@ ingester:
   chunk_idle_period: 5m
   max_chunk_age: 1h
   chunk_target_size: 1048576
+  max_transfer_retries: 0
 
 schema_config:
   configs:
     - from: 2020-10-24
-      store: boltdb
+      store: boltdb-shipper
       object_store: filesystem
       schema: v11
       index:
         prefix: index_
-        period: 24h
+        period: 168h
 
 storage_config:
-  boltdb:
-    directory: /loki/index
+  boltdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/cache
+    shared_store: filesystem
   filesystem:
     directory: /loki/chunks
 
 limits_config:
   enforce_metric_name: false
-  reject_old_samples: true
-  reject_old_samples_max_age: 168h
+  max_streams_per_user: 0
+
+chunk_store_config:
+  max_look_back_period: 0
+
+table_manager:
+  retention_deletes_enabled: false
+  retention_period: 0s

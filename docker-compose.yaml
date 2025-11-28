@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3"
 
 services:
   grafana:
@@ -6,23 +6,21 @@ services:
     image: grafana/grafana:main-ubuntu
     user: "472:472"
     volumes:
-      - ./grafana-data:/var/lib/grafana/
+      - './grafana/:/var/lib/grafana/'
+      - './grafana/dashboards:/var/lib/grafana/dashboards'
+      - './grafana/provisioning:/etc/grafana/provisioning'
     environment:
       - GF_LOG_LEVEL=debug
     ports:
       - "3000:3000"
     restart: unless-stopped
-    networks:
-      - monitoring-network
-    security_opt:
-      - no-new-privileges:true
 
   prometheus:
     container_name: prometheus
     image: prom/prometheus:latest
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/prometheus-data:/prometheus
+      - './prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro'
+      - './prometheus-data:/prometheus'
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -30,18 +28,14 @@ services:
     ports:
       - "9090:9090"
     restart: unless-stopped
-    networks:
-      - monitoring-network
-    security_opt:
-      - no-new-privileges:true
 
   node-exporter:
     container_name: node-exporter
     image: prom/node-exporter:latest
     volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
+      - '/proc:/host/proc:ro'
+      - '/sys:/host/sys:ro'
+      - '/:/rootfs:ro'
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
@@ -49,20 +43,16 @@ services:
     ports:
       - "9100:9100"
     restart: unless-stopped
-    networks:
-      - monitoring-network
-    security_opt:
-      - no-new-privileges:true
 
   wow-exporter:
-    container_name: wow-exporter
     build: .
+    container_name: wow-exporter
+    ports:
+      - "8080:8080"   # matches EXPOSE 8080 in Dockerfile
     pid: "host"
     restart: unless-stopped
     networks:
       - monitoring-network
-    volumes:
-      - /proc:/host/proc:ro
     security_opt:
       - no-new-privileges:true
 
@@ -72,28 +62,16 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
-      - ./loki/loki-data:/loki
+      - './loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro'
+      - './loki-data:/loki'
     command: -config.file=/etc/loki/loki-config.yaml
     restart: unless-stopped
-    networks:
-      - monitoring-network
-    security_opt:
-      - no-new-privileges:true
 
   promtail:
     container_name: promtail
     image: grafana/promtail:latest
     volumes:
-      - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
-      - ./wow-logs:/var/log/wow:ro
+      - './promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro'
+      - '/home/mangos/mangos/zero/bin:/var/log/wow:ro'
     command: -config.file=/etc/promtail/promtail-config.yaml
     restart: unless-stopped
-    networks:
-      - monitoring-network
-    security_opt:
-      - no-new-privileges:true
-
-networks:
-  monitoring-network:
-    driver: bridge
