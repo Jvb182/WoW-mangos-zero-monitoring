@@ -3,19 +3,25 @@ services:
     container_name: grafana
     image: grafana/grafana:main-ubuntu
     user: "472:472"
+    ports:
+      - "3000:3000" # If you want web UI
     volumes:
       - './grafana/:/var/lib/grafana/'
       - './grafana/dashboards:/var/lib/grafana/dashboards'
       - './grafana/provisioning:/etc/grafana/provisioning'
     environment:
       - GF_LOG_LEVEL=debug
-    ports:
-      - "3000:3000"
     restart: unless-stopped
+    networks:
+      - monitoring-network   # For talking to Prometheus/Loki
+    security_opt:
+      - no-new-privileges:true
 
   prometheus:
     container_name: prometheus
     image: prom/prometheus:latest
+    networks:
+      - monitoring-network
     volumes:
       - './prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro'
       - './prometheus-data:/prometheus'
@@ -23,13 +29,13 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
-    ports:
-      - "9090:9090"
     restart: unless-stopped
 
   node-exporter:
     container_name: node-exporter
     image: prom/node-exporter:latest
+    networks:
+      - monitoring-network
     volumes:
       - '/proc:/host/proc:ro'
       - '/sys:/host/sys:ro'
@@ -38,27 +44,23 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    ports:
-      - "9100:9100"
     restart: unless-stopped
 
   wow-exporter:
     build: .
     container_name: wow-exporter
-    ports:
-      - "8080:8080"   # matches EXPOSE 8080 in Dockerfile
-    pid: "host"
-    restart: unless-stopped
     networks:
       - monitoring-network
+    pid: "host"
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
 
   loki:
     container_name: loki
     image: grafana/loki:latest
-    ports:
-      - "3100:3100"
+    networks:
+      - monitoring-network
     volumes:
       - './loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro'
       - './loki-data:/loki'
@@ -68,6 +70,8 @@ services:
   promtail:
     container_name: promtail
     image: grafana/promtail:latest
+    networks:
+      - monitoring-network
     volumes:
       - './promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro'
       - '/home/mangos/mangos/zero/bin:/var/log/wow:ro'
