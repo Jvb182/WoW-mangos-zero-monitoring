@@ -72,45 +72,59 @@ docker compose up -d
 
 ### 6. Access Grafana
 
-Open your browser to `http://localhost:3000`
+Open your browser to `http://localhost:3000` (or your configured domain if using Traefik)
 
 **Default credentials:**
 - Username: `admin`
 - Password: `admin`
 
-You'll be prompted to change the password on first login.
+**You'll be prompted to change the password on first login.**
 
-### 7. Add Data Sources
+### 7. Configure Data Sources
 
-**Prometheus:**
-1. Go to Configuration → Data Sources
-2. Add Prometheus
-3. URL: `http://prometheus:9090`
-4. Save & Test
+Grafana needs to know where to get data from:
 
-**Loki:**
-1. Add Loki data source
-2. URL: `http://loki:3100`
-3. Save & Test
+**Add Prometheus:**
+1. Click the menu (☰) → **Connections** → **Data Sources**
+2. Click **Add data source**
+3. Select **Prometheus**
+4. Set URL: `http://prometheus:9090`
+5. Click **Save & Test** (should show green checkmark)
+
+**Add Loki:**
+1. Click **Add data source** again
+2. Select **Loki**
+3. Set URL: `http://loki:3100`
+4. Click **Save & Test** (should show green checkmark)
 
 ### 8. Import Dashboards
 
-**Node Exporter Dashboard:**
-1. Go to Dashboards → Import
-2. Enter ID: `1860`
-3. Select Prometheus data source
-4. Import
+**System Metrics Dashboard:**
+1. Click the menu (☰) → **Dashboards**
+2. Click **New** → **Import**
+3. Enter dashboard ID: **1860** (Node Exporter Full)
+4. Click **Load**
+5. Select your **Prometheus** data source
+6. Click **Import**
 
-**Create WoW Server Dashboard:**
-1. Create new dashboard
-2. Add panel with query: `wow_server_up`
-3. Set visualization to "Stat"
-4. Thresholds: 0 = red, 1 = green
+**Create WoW Server Status Panel:**
+1. Go to **Dashboards** → **New** → **New Dashboard**
+2. Click **Add visualization**
+3. Select **Prometheus** data source
+4. Query: `wow_server_up`
+5. Change visualization type to **Stat**
+6. Under **Value options** → **Thresholds**:
+    - 0 = Red (server down)
+    - 1 = Green (server up)
+7. Click **Save**
 
-**View Logs:**
-1. Go to Explore
-2. Select Loki data source
-3. Query: `{job="wow_server"}`
+### 9. View Logs
+
+1. Click **Explore** (compass icon)
+2. Select **Loki** data source
+3. Enter query: `{job="wow_server"}`
+4. Click **Run query**
+5. You should see your WoW server logs streaming in!
 
 ## Configuration Files
 
