@@ -4,16 +4,16 @@ services:
     image: grafana/grafana:main-ubuntu
     user: "472:472"
     ports:
-      - "3000:3000" # If you want web UI
+      - "${GRAFANA_PORT:-3000}:3000"
     volumes:
-      - './grafana/:/var/lib/grafana/'
-      - './grafana/dashboards:/var/lib/grafana/dashboards'
-      - './grafana/provisioning:/etc/grafana/provisioning'
+      - '${GRAFANA_DATA:-./grafana}/:/var/lib/grafana/'
+      - '${GRAFANA_DATA:-./grafana}/dashboards:/var/lib/grafana/dashboards'
+      - '${GRAFANA_DATA:-./grafana}/provisioning:/etc/grafana/provisioning'
     environment:
-      - GF_LOG_LEVEL=debug
+      - GF_LOG_LEVEL=${GF_LOG_LEVEL:-info}
     restart: unless-stopped
     networks:
-      - monitoring-network   # For talking to Prometheus/Loki
+      - monitoring-network
     security_opt:
       - no-new-privileges:true
 
@@ -24,7 +24,7 @@ services:
       - monitoring-network
     volumes:
       - './prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro'
-      - './prometheus-data:/prometheus'
+      - '${PROMETHEUS_DATA:-./prometheus-data}:/prometheus'
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -51,6 +51,9 @@ services:
     container_name: wow-exporter
     networks:
       - monitoring-network
+    environment:
+      - MANGOS_PROCESS_NAME=${MANGOS_PROCESS_NAME:-mangosd}
+      - REALM_PROCESS_NAME=${REALM_PROCESS_NAME:-realmd}
     pid: "host"
     restart: unless-stopped
     security_opt:
@@ -63,7 +66,7 @@ services:
       - monitoring-network
     volumes:
       - './loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro'
-      - './loki-data:/loki'
+      - '${LOKI_DATA:-./loki-data}:/loki'
     command: -config.file=/etc/loki/loki-config.yaml
     restart: unless-stopped
 
@@ -74,7 +77,7 @@ services:
       - monitoring-network
     volumes:
       - './promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro'
-      - '/home/mangos/mangos/zero/bin:/var/log/wow:ro'
+      - '${MANGOS_LOG_PATH:-/var/log/mangos}:/var/log/wow:ro'
     command: -config.file=/etc/promtail/promtail-config.yaml
     restart: unless-stopped
 

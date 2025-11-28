@@ -33,15 +33,21 @@ git clone https://github.com/yourusername/WoW-mangos-zero-monitoring.git
 cd WoW-mangos-zero-monitoring
 ```
 
-### 2. Configure Log Path
+### 2. Configure Environment Variables
 
-Edit `docker-compose.yaml` and update the Promtail volume mount to point to your MaNGOS log directory:
-```yaml
-promtail:
-  volumes:
-    - '/path/to/your/mangos/bin:/var/log/wow:ro'
-    # Example: '/home/mangos/mangos/zero/bin:/var/log/wow:ro'
+Copy the example environment file and customize for your setup:
+```bash
+cp .env.example .env
+nano .env
 ```
+
+**Required variables:**
+- `MANGOS_LOG_PATH` - Path to your MaNGOS log directory
+- `MANGOS_PROCESS_NAME` - Your world server process name (default: `mangosd`)
+
+**Optional variables:**
+- `GRAFANA_PORT` - Grafana web UI port (default: 3000)
+- `GF_LOG_LEVEL` - Log level (default: info)
 
 ### 3. Update WoW Exporter Process Name (if needed)
 

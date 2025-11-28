@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 .idea/
 
+grafana/
+prometheus-data/
+loki-data/

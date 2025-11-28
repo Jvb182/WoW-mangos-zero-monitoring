@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,6 +20,9 @@ var (
 		Name: "wow_realm_up",
 		Help: "Is the WoW realm running (1 = up, 0 = down)",
 	})
+
+	mangosProcessName = getEnv("MANGOS_PROCESS_NAME", "mangosd")
+	realmProcessName  = getEnv("REALM_PROCESS_NAME", "realmd")
 )
 
 func init() {
@@ -27,6 +31,15 @@ func init() {
 		wowServerUp,
 		wowRealmUp,
 	)
+}
+
+// getEnv gets an environment variable with a default fallback
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }
 
 func main() {
@@ -38,7 +51,7 @@ func main() {
 }
 
 func checkWoWServer() {
-	cmd := exec.Command("pgrep", "-x", "mangosd")
+	cmd := exec.Command("pgrep", "-x", mangosProcessName)
 	err := cmd.Run()
 	if err == nil {
 		// Process is running
@@ -48,7 +61,7 @@ func checkWoWServer() {
 		wowServerUp.Set(0)
 	}
 
-	cmd = exec.Command("pgrep", "-x", "realmd")
+	cmd = exec.Command("pgrep", "-x", realmProcessName)
 	err = cmd.Run()
 	if err == nil {
 		// Process is running
