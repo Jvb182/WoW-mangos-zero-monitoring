@@ -1,0 +1,29 @@
+# Ignore data directories
+grafana/
+prometheus/
+loki/
+mysql-exporter/
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore env files
+.env
+.env.example
+
+# Ignore documentation
+README.md
+LICENSE
+
+# Ignore config files not needed for build
+prometheus.yml
+loki-config.yaml
+promtail-config.yaml
+docker-compose.yaml
+
+# Keep only what's needed for Go build
+!main.go
+!go.mod
+!go.sum
+!Dockerfile
