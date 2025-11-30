@@ -6,13 +6,10 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
-    editable: true
-    version: 1
+    editable: false
 
   - name: Loki
     type: loki
     access: proxy
     url: http://loki:3100
-    isDefault: false
-    editable: true
-    version: 1
+    editable: false

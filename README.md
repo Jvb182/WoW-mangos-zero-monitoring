@@ -277,6 +277,35 @@ MIT License - see LICENSE file for details
 - [Grafana Labs](https://grafana.com/)
 - Built with guidance from Claude :)
 
+
+## Troubleshooting
+
+### No logs showing in Grafana
+
+If Promtail can't read your MaNGOS log files, you'll need to make them readable.
+
+**Check if logs are accessible:**
+```bash
+docker exec promtail ls -la /var/log/wow/
+```
+
+If the directory is empty, fix permissions on your MaNGOS logs:
+```bash
+# Option 1: Make logs world-readable (easiest)
+sudo chmod -R o+r /home/mangos/mangos/zero/bin/*.log
+sudo chmod o+rx /home/mangos/mangos/zero/bin
+
+# Option 2: Run Promtail as mangos user
+# Get mangos UID: id -u mangos
+# Add to docker-compose.yaml under promtail service:
+#   user: "1003:1003"  # Replace with your mangos UID
+```
+
+Then restart:
+```bash
+docker compose restart promtail
+```
+
 ## Support
 
 For issues or questions:
