@@ -5,6 +5,9 @@ prometheus/data/*
 !prometheus/data/.gitkeep
 loki/data/*
 !loki/data/.gitkeep
+mysql-exporter/.my.cnf
+!mysql-exporter/.my.cnf.example
+
 
 *.exe
 *.exe~

@@ -1,0 +1,11 @@
+# Custom queries for WoW server metrics
+queries:
+  - name: wow_players_online
+    help: "Number of players currently online"
+    labels: []
+    values:
+      - online_count
+    query: |
+      SELECT COUNT(*) as online_count 
+      FROM characters 
+      WHERE online = 1;

@@ -81,6 +81,20 @@ services:
     command: -config.file=/etc/promtail/promtail-config.yaml
     restart: unless-stopped
 
+  mysql-exporter:
+    container_name: mysql-exporter
+    image: prom/mysqld-exporter:latest
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    volumes:
+      - './mysql-exporter/.my.cnf:/etc/.my.cnf:ro'
+    command:
+      - "--config.my-cnf=/etc/.my.cnf"
+    security_opt:
+      - no-new-privileges:true
+
 networks:
   monitoring-network:
     driver: bridge
+    
