@@ -34,12 +34,13 @@ echo "You'll need:"
 echo "  - Your MaNGOS log directory path"
 echo "  - Your MaNGOS process names"
 echo "  - Sudo access for setting permissions"
-echo "  - Creating a read only MySQL user for metric gathering"
+echo "  - MySQL/MariaDB root credentials for creating a monitoring user"
 echo ""
 
 wait_for_user
 
 # Step 1: Create .env file
+echo "==================================================================="
 echo "📝 Step 1: Configuration File"
 echo "==================================================================="
 if [ -f .env ]; then
@@ -78,15 +79,17 @@ echo "✅ Configuration saved"
 wait_for_user
 
 # Step 2: Create data directories
+echo "==================================================================="
 echo "📁 Step 2: Creating Data Directories"
 echo "==================================================================="
 echo "Creating directories for Grafana, Prometheus, and Loki data..."
 
-mkdir -p grafana/data prometheus/data loki/data
+mkdir -p grafana/data prometheus/data loki/data mysql-exporter
 check_success
 
 # Step 3: Set permissions
 echo ""
+echo "==================================================================="
 echo "🔒 Step 3: Setting Directory Permissions"
 echo "==================================================================="
 echo "This requires sudo access..."
@@ -105,6 +108,7 @@ echo "✅ Directory permissions set"
 wait_for_user
 
 # Step 4: MaNGOS log permissions
+echo "==================================================================="
 echo "📋 Step 4: MaNGOS Log File Permissions"
 echo "==================================================================="
 
@@ -156,8 +160,127 @@ fi
 
 wait_for_user
 
-# Step 5: MySQL Monitoring User Setup
-echo "🗄️  Step 5: MySQL Monitoring User"
+# Step 5: MySQL Network Configuration
+echo "==================================================================="
+echo "🔧 Step 5: MySQL Network Configuration"
+echo "==================================================================="
+echo ""
+echo "Docker containers need to access MySQL on the host machine."
+echo "Let's verify your MySQL configuration..."
+echo ""
+
+# Check if MySQL/MariaDB is running
+if ! sudo ss -tlnp | grep -q ":3306"; then
+    echo "❌ MySQL/MariaDB is not running on port 3306"
+    echo "   Please start MySQL before continuing"
+    exit 1
+fi
+
+# Check bind address
+MYSQL_BIND=$(sudo ss -tlnp | grep :3306 | awk '{print $4}' | cut -d: -f1 | head -1)
+
+if [ "$MYSQL_BIND" = "127.0.0.1" ]; then
+    echo "⚠️  WARNING: MySQL is only listening on 127.0.0.1 (localhost)"
+    echo ""
+    echo "Docker containers cannot reach MySQL on localhost."
+    echo "You need to configure MySQL to listen on all interfaces."
+    echo ""
+    echo "Steps to fix:"
+    echo "  1. Edit: sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf"
+    echo "     (or for MySQL: sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf)"
+    echo "  2. Find the [mysqld] section"
+    echo "  3. Change: bind-address = 127.0.0.1"
+    echo "     To:     bind-address = 0.0.0.0"
+    echo "  4. Save and exit"
+    echo "  5. Restart: sudo systemctl restart mariadb"
+    echo ""
+    read -p "Press Enter after you've fixed this, or Ctrl+C to exit..."
+    echo ""
+    
+    # Verify the fix
+    MYSQL_BIND=$(sudo ss -tlnp | grep :3306 | awk '{print $4}' | cut -d: -f1 | head -1)
+    if [ "$MYSQL_BIND" = "0.0.0.0" ]; then
+        echo "✅ MySQL is now listening on all interfaces"
+    else
+        echo "⚠️  MySQL bind address is still: $MYSQL_BIND"
+        echo "   You may need to check your configuration again"
+    fi
+elif [ "$MYSQL_BIND" = "0.0.0.0" ] || [ "$MYSQL_BIND" = "*" ]; then
+    echo "✅ MySQL is listening on all interfaces"
+else
+    echo "⚠️  MySQL is listening on: $MYSQL_BIND"
+fi
+
+echo ""
+echo "Checking Docker network and firewall..."
+
+# Start monitoring stack to get network info
+echo "Starting Docker containers to detect network..."
+docker compose up -d >/dev/null 2>&1
+sleep 3
+
+# Get Docker gateway IP
+GATEWAY_IP=$(docker network inspect auto-monitor_monitoring-network 2>/dev/null | grep -oP '"Gateway": "\K[^"]+' | head -1)
+
+if [ -n "$GATEWAY_IP" ]; then
+    echo "✅ Docker gateway IP: $GATEWAY_IP"
+    
+    # Extract subnet (e.g., 172.22.0.1 -> 172.22.0.0/16)
+    SUBNET=$(echo $GATEWAY_IP | cut -d. -f1-2).0.0/16
+    echo "   Docker subnet: $SUBNET"
+else
+    echo "⚠️  Could not detect gateway IP"
+    GATEWAY_IP="172.22.0.1"
+    SUBNET="172.22.0.0/16"
+    echo "   Using defaults: gateway=$GATEWAY_IP, subnet=$SUBNET"
+fi
+
+echo ""
+echo "Testing Docker container network access to MySQL..."
+
+# Simple test: can the container reach the port at all?
+# We use telnet-like behavior - if we can connect to the port, network is good
+if docker exec mysql-exporter sh -c "timeout 2 nc -z $GATEWAY_IP 3306" 2>/dev/null; then
+    echo "✅ Docker containers can reach MySQL port 3306"
+    echo "   Network and firewall configuration is correct"
+else
+    # nc might not be available, try a different approach
+    if docker exec mysql-exporter sh -c "timeout 2 wget -q --spider telnet://$GATEWAY_IP:3306" 2>/dev/null; then
+        echo "✅ Docker containers can reach MySQL port 3306"
+        echo "   Network and firewall configuration is correct"
+    else
+        # Last resort: check if firewall rule exists and assume it works
+        if sudo ufw status 2>/dev/null | grep -q "$SUBNET.*3306"; then
+            echo "✅ Firewall rule exists for Docker network to access MySQL"
+            echo "   Assuming network configuration is correct"
+        else
+            echo "⚠️  Cannot verify Docker container network access to MySQL"
+            echo ""
+            echo "This might be a firewall issue. Docker subnet ($SUBNET) needs access to MySQL."
+            echo "Recommended firewall rule: sudo ufw allow from $SUBNET to any port 3306"
+            echo ""
+            read -p "Would you like to add this firewall rule now? (Y/n): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+                sudo ufw allow from $SUBNET to any port 3306
+                if [ $? -eq 0 ]; then
+                    echo "✅ Firewall rule added successfully"
+                else
+                    echo "❌ Failed to add firewall rule"
+                    echo "   You may need to add it manually"
+                fi
+            else
+                echo "⚠️  Skipped - if MySQL monitoring doesn't work, add this rule manually"
+            fi
+        fi
+    fi
+fi
+
+wait_for_user
+
+# Step 6: MySQL Monitoring User Setup
+echo "==================================================================="
+echo "🗄️  Step 6: MySQL Monitoring User"
 echo "==================================================================="
 echo ""
 echo "For database monitoring, we need a read-only MySQL user."
@@ -173,7 +296,7 @@ if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
     echo ""
     
     # Get MySQL root credentials
-    echo "Enter your MySQL root credentials (or admin user with GRANT privileges):"
+    echo "Enter your MySQL/MariaDB root credentials:"
     read -p "MySQL root username [root]: " MYSQL_ROOT_USER
     MYSQL_ROOT_USER=${MYSQL_ROOT_USER:-root}
     
@@ -211,7 +334,7 @@ if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
     
     echo ""
     echo "Creating monitoring user 'mangos_monitor' with password: $MONITOR_PASSWORD"
-    echo "(This will be saved in your .env file)"
+    echo "(This will be saved in your configuration files)"
     echo ""
     
     # Create the SQL commands
@@ -283,42 +406,54 @@ if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
         
         echo "✅ .env file updated"
 
-                # Create MySQL exporter configuration
+        # Create MySQL exporter configuration with gateway IP
         echo ""
         echo "Creating MySQL exporter configuration..."
-        mkdir -p mysql-exporter
         
         cat > mysql-exporter/.my.cnf << EOF
 [client]
 user=mangos_monitor
 password=$MONITOR_PASSWORD
-host=$MYSQL_HOST
+host=$GATEWAY_IP
 port=3306
+protocol=tcp
 EOF
         
         chmod 600 mysql-exporter/.my.cnf
-        echo "✅ MySQL exporter config created"
+        echo "✅ MySQL exporter config created (using gateway IP: $GATEWAY_IP)"
         
-        # Test connection on all three databases
+        # Test connection from Docker container
         echo ""
-        echo "Testing connections..."
+        echo "Testing MySQL connection from Docker container..."
+        
+        if docker exec mysql-exporter mysql --defaults-file=/etc/.my.cnf -e "SELECT 1;" &>/dev/null; then
+            echo "✅ Docker container can connect to MySQL"
+        else
+            echo "⚠️  Docker container cannot connect to MySQL"
+            echo "   This might be a network or firewall issue"
+            echo "   Check the troubleshooting section in README.md"
+        fi
+        
+        # Test connection to all three databases
+        echo ""
+        echo "Testing database access..."
         
         echo -n "  World database ($WORLD_DB)... "
-        if mysql -u"mangos_monitor" -p"$MONITOR_PASSWORD" -e "SELECT 1 FROM $WORLD_DB.item_template LIMIT 1;" &>/dev/null; then
+        if mysql -u"mangos_monitor" -p"$MONITOR_PASSWORD" -h"$GATEWAY_IP" -e "SELECT 1 FROM $WORLD_DB.item_template LIMIT 1;" &>/dev/null; then
             echo "✅"
         else
             echo "❌"
         fi
         
         echo -n "  Character database ($CHAR_DB)... "
-        if mysql -u"mangos_monitor" -p"$MONITOR_PASSWORD" -e "SELECT COUNT(*) FROM $CHAR_DB.characters;" &>/dev/null; then
+        if mysql -u"mangos_monitor" -p"$MONITOR_PASSWORD" -h"$GATEWAY_IP" -e "SELECT COUNT(*) FROM $CHAR_DB.characters;" &>/dev/null; then
             echo "✅"
         else
             echo "❌"
         fi
         
         echo -n "  Realm database ($REALM_DB)... "
-        if mysql -u"mangos_monitor" -p"$MONITOR_PASSWORD" -e "SELECT COUNT(*) FROM $REALM_DB.account;" &>/dev/null; then
+        if mysql -u"mangos_monitor" -p"$MONITOR_PASSWORD" -h"$GATEWAY_IP" -e "SELECT COUNT(*) FROM $REALM_DB.account;" &>/dev/null; then
             echo "✅"
         else
             echo "❌"
@@ -353,8 +488,9 @@ fi
 
 wait_for_user
 
-# Step 6: Verify configuration
-echo "🔍 Step 6: Verifying Setup"
+# Step 7: Verify configuration
+echo "==================================================================="
+echo "🔍 Step 7: Verifying Setup"
 echo "==================================================================="
 
 echo "Checking if MaNGOS logs exist..."
@@ -362,12 +498,53 @@ if [ -d "$MANGOS_LOG_PATH" ]; then
     LOG_COUNT=$(ls -1 $MANGOS_LOG_PATH/*.log 2>/dev/null | wc -l)
     if [ $LOG_COUNT -gt 0 ]; then
         echo "✅ Found $LOG_COUNT log files"
+        
+        # Check ownership and permissions
+        FIRST_LOG=$(ls -1 $MANGOS_LOG_PATH/*.log 2>/dev/null | head -1)
+        LOG_OWNER=$(stat -c '%U' "$FIRST_LOG" 2>/dev/null)
+        LOG_GROUP=$(stat -c '%G' "$FIRST_LOG" 2>/dev/null)
+        LOG_PERMS=$(stat -c '%a' "$FIRST_LOG" 2>/dev/null)
+        CURRENT_USER=$(whoami)
+        
+        echo "   Log owner: $LOG_OWNER:$LOG_GROUP"
+        echo "   Permissions: $LOG_PERMS"
+        echo "   Current user: $CURRENT_USER"
+        
+        # Check if current user can read the logs
+        if [ -r "$FIRST_LOG" ]; then
+            echo "   ✅ Current user can read log files"
+        else
+            echo "   ⚠️  Current user cannot read log files"
+            echo ""
+            echo "   Promtail runs as root in Docker and should be able to read them,"
+            echo "   but you may have issues if you need to access them manually."
+            echo ""
+            echo "   To allow all users to read: sudo chmod -R o+r $MANGOS_LOG_PATH/*.log"
+        fi
+        
+        # Warn if logs are owned by a different user
+        if [ "$LOG_OWNER" != "$CURRENT_USER" ] && [ "$CURRENT_USER" != "root" ]; then
+            echo ""
+            echo "   ℹ️  Note: Logs are owned by '$LOG_OWNER', you're running as '$CURRENT_USER'"
+            echo "   This is fine - Promtail container runs as root and can read them."
+        fi
     else
         echo "⚠️  No .log files found in $MANGOS_LOG_PATH"
     fi
 else
     echo "❌ Directory $MANGOS_LOG_PATH does not exist"
     echo "   Please check your MANGOS_LOG_PATH in .env"
+    echo ""
+    echo "   Common paths:"
+    echo "   - /home/mangos/mangos/zero/bin"
+    echo "   - /opt/mangos/bin"
+    echo ""
+    read -p "   Enter the correct path or press Enter to continue: " NEW_PATH
+    if [ -n "$NEW_PATH" ] && [ -d "$NEW_PATH" ]; then
+        sed -i "s|^MANGOS_LOG_PATH=.*|MANGOS_LOG_PATH=$NEW_PATH|" .env
+        echo "   ✅ Updated MANGOS_LOG_PATH in .env"
+        source .env
+    fi
 fi
 
 echo ""
@@ -399,22 +576,18 @@ echo "==================================================================="
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Review your configuration:"
-echo "     cat .env"
-echo ""
-echo "  2. Start the monitoring stack:"
+echo "  1. Restart the monitoring stack with updated configuration:"
+echo "     docker compose down"
 echo "     docker compose up -d"
 echo ""
-echo "  3. Check container status:"
+echo "  2. Check container status:"
 echo "     docker compose ps"
 echo ""
-echo "  4. View logs if there are issues:"
-echo "     docker compose logs -f"
+echo "  3. View logs if there are issues:"
+echo "     docker compose logs mysql-exporter"
+echo "     docker compose logs prometheus"
 echo ""
-echo "  5. Access Grafana:"
+echo "  4. Access Grafana:"
 echo "     http://localhost:3000"
 echo "     Default login: admin/admin"
-echo ""
-echo "For Traefik integration, see the README.md"
-echo ""
 echo "==================================================================="

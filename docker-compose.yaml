@@ -96,6 +96,7 @@ services:
       - './mysql-exporter/.my.cnf:/etc/.my.cnf:ro'
     command:
       - "--config.my-cnf=/etc/.my.cnf"
+      - "--no-collect.slave_status"
     security_opt:
       - no-new-privileges:true
 
