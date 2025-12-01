@@ -1,7 +1,14 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+.env
+grafana/data/*
+!grafana/data/.gitkeep
+prometheus/data/*
+!prometheus/data/.gitkeep
+loki/data/*
+!loki/data/.gitkeep
+mysql-exporter/.my.cnf
+!mysql-exporter/.my.cnf.example
+
+
 *.exe
 *.exe~
 *.dll
@@ -24,9 +31,5 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
-.env
-
 # Editor/IDE
 .idea/
-

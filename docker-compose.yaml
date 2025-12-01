@@ -1,0 +1,105 @@
+services:
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:main-ubuntu
+    user: "472:472"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - './grafana/data/:/var/lib/grafana/'
+      - './grafana/dashboards:/var/lib/grafana/dashboards'
+      - './grafana/provisioning:/etc/grafana/provisioning'
+    environment:
+      - GF_LOG_LEVEL=${GF_LOG_LEVEL:-info}
+    restart: unless-stopped
+    networks:
+      - monitoring-network
+    security_opt:
+      - no-new-privileges:true
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    networks:
+      - monitoring-network
+    volumes:
+      - './prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro'
+      - './prometheus/data:/prometheus'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+
+  node-exporter:
+    container_name: node-exporter
+    image: prom/node-exporter:latest
+    networks:
+      - monitoring-network
+    volumes:
+      - '/proc:/host/proc:ro'
+      - '/sys:/host/sys:ro'
+      - '/:/rootfs:ro'
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+
+  wow-exporter:
+    build: .
+    container_name: wow-exporter
+    networks:
+      - monitoring-network
+    environment:
+      - MANGOS_PROCESS_NAME=${MANGOS_PROCESS_NAME:-mangosd}
+      - REALM_PROCESS_NAME=${REALM_PROCESS_NAME:-realmd}
+      - MYSQL_HOST=${MYSQL_HOST:-localhost}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_CHAR_DB=${MYSQL_CHAR_DB:-character0}
+      - MYSQL_USER=${MYSQL_USER:-mangos_monitor}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    pid: "host"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  loki:
+    container_name: loki
+    image: grafana/loki:latest
+    networks:
+      - monitoring-network
+    volumes:
+      - './loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro'
+      - './loki/data:/loki'
+    command: -config.file=/etc/loki/loki-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    container_name: promtail
+    image: grafana/promtail:latest
+    networks:
+      - monitoring-network
+    volumes:
+      - './promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro'
+      - '${MANGOS_LOG_PATH:-/var/log/mangos}:/var/log/wow:ro'
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    restart: unless-stopped
+
+  mysql-exporter:
+    container_name: mysql-exporter
+    image: prom/mysqld-exporter:latest
+    networks:
+      - monitoring-network
+    restart: unless-stopped
+    volumes:
+      - './mysql-exporter/.my.cnf:/etc/.my.cnf:ro'
+    command:
+      - "--config.my-cnf=/etc/.my.cnf"
+      - "--no-collect.slave_status"
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  monitoring-network:
+    driver: bridge
