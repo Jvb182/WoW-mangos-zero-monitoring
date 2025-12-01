@@ -527,7 +527,7 @@ port=3306
 protocol=tcp
 EOF
         
-        chmod 600 mysql-exporter/.my.cnf
+        chmod 644 mysql-exporter/.my.cnf
         echo "✅ MySQL exporter config created (using gateway IP: $GATEWAY_IP)"
         
         # Test connection from Docker container
