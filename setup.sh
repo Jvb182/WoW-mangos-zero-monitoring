@@ -83,8 +83,22 @@ echo "📁 Step 2: Creating Data Directories"
 echo "==================================================================="
 echo "Creating directories for Grafana, Prometheus, and Loki data..."
 
-mkdir -p grafana/data prometheus/data loki/data
+mkdir -p grafana/data prometheus/data loki/data mysql-exporter
 check_success
+
+# Create placeholder .my.cnf so mysql-exporter can start (will be configured later)
+if [ ! -f mysql-exporter/.my.cnf ]; then
+    cat > mysql-exporter/.my.cnf << 'EOF'
+[client]
+user=placeholder
+password=placeholder
+host=127.0.0.1
+port=3306
+protocol=tcp
+EOF
+    chmod 644 mysql-exporter/.my.cnf
+    echo "✅ Created placeholder MySQL config (will be configured in Step 6)"
+fi
 
 # Step 3: Set permissions
 echo ""
@@ -267,6 +281,7 @@ echo "Checking Docker network and firewall..."
 
 # Start monitoring stack to get network info
 echo "Starting Docker containers to detect network..."
+echo "This may take a minute if this is the first time, please be patient"
 docker compose up -d >/dev/null 2>&1
 sleep 3
 
@@ -302,7 +317,7 @@ echo "Testing Docker container network access to MySQL..."
 
 # Check if firewall rule already exists first
 FIREWALL_EXISTS=false
-if sudo ufw status 2>/dev/null | grep "3306" | grep -q "$SUBNET"; then
+if sudo ufw status 2>/dev/null | grep "3306" | grep -q "172.22"; then
     FIREWALL_EXISTS=true
     echo "✅ Firewall rule already exists for Docker network"
 fi
@@ -332,6 +347,21 @@ else
             sudo ufw allow from $SUBNET to any port 3306
             if [ $? -eq 0 ]; then
                 echo "✅ Firewall rule added successfully"
+                
+                # Retest after adding the rule
+                echo ""
+                echo "Testing connection again..."
+                sleep 2
+                
+                if docker exec mysql-exporter sh -c "timeout 2 nc -z $GATEWAY_IP 3306" 2>/dev/null; then
+                    echo "✅ Connection test successful!"
+                elif docker exec mysql-exporter sh -c "timeout 2 wget -q --spider telnet://$GATEWAY_IP:3306" 2>/dev/null; then
+                    echo "✅ Connection test successful!"
+                else
+                    echo "⚠️  Connection test still fails"
+                    echo "   This is likely due to missing test tools in the container"
+                    echo "   Proceeding anyway - actual MySQL connection will be tested in next step"
+                fi
             else
                 echo "❌ Failed to add firewall rule"
                 echo "   You may need to add it manually"
@@ -472,15 +502,21 @@ if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
         
         echo "✅ .env file updated"
 
-        # Create MySQL exporter configuration with gateway IP
+# Create MySQL exporter configuration with gateway IP
         echo ""
         echo "Creating MySQL exporter configuration..."
         
-        # Create directory if it doesn't exist, remove file if it exists as directory
+        # Create directory, and force-remove .my.cnf if it exists as a directory
+        mkdir -p mysql-exporter
+        
         if [ -d "mysql-exporter/.my.cnf" ]; then
+            echo "   Removing existing .my.cnf directory..."
             rm -rf mysql-exporter/.my.cnf
         fi
-        mkdir -p mysql-exporter
+        
+        if [ -f "mysql-exporter/.my.cnf" ]; then
+            echo "   Overwriting existing .my.cnf file..."
+        fi
         
         cat > mysql-exporter/.my.cnf << EOF
 [client]
@@ -568,8 +604,7 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "  1. Restart the monitoring stack with updated configuration:"
-echo "     docker compose down"
-echo "     docker compose up -d"
+echo "     docker compose restart"
 echo ""
 echo "  2. Check container status:"
 echo "     docker compose ps"
