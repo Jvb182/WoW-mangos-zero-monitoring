@@ -179,7 +179,12 @@ docker compose up -d
 
 Find your Docker gateway IP:
 ```bash
-docker network inspect auto-monitor_monitoring-network | grep Gateway
+# Find your network name (will be <directory-name>_monitoring-network)
+docker network ls | grep monitoring-network
+
+# Inspect it (replace with your actual network name)
+docker network inspect <your-network-name> | grep Gateway
+
 # Note the IP (e.g., 172.xx.x.x)
 
 # The subnet will be the first two octets: 172.x.x.x/16
@@ -336,7 +341,7 @@ The pre-configured dashboard is already loaded and will show:
 **Solutions:**
 1. Check Prometheus targets: http://localhost:9090/targets
 2. All targets should show "UP" status
-3. Check container networking: `docker network inspect auto-monitor_monitoring-network`
+3. Check container networking: `docker network inspect {{network name}}`
 4. Restart Prometheus: `docker compose restart prometheus`
 
 ### Permission Denied Errors

@@ -44,38 +44,37 @@ echo "==================================================================="
 echo "📝 Step 1: Configuration File"
 echo "==================================================================="
 if [ -f .env ]; then
-    echo "⚠️  .env file already exists"
-    read -p "Do you want to overwrite it? (y/N): " -n 1 -r
+    echo "✅ .env file already exists"
+    read -p "Do you want to edit it? (y/N): " -n 1 -r
     echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Keeping existing .env file"
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        nano .env
+        echo "✅ Configuration updated"
     else
-        cp .env.example .env
-        echo "✅ Created new .env file"
+        echo "Keeping existing .env file"
     fi
 else
     cp .env.example .env
     echo "✅ Created .env file from template"
+    echo ""
+    echo "Now you need to edit the .env file with your configuration:"
+    echo ""
+    echo "  1. MANGOS_LOG_PATH - Path to your MaNGOS logs"
+    echo "     Example: /home/mangos/mangos/zero/bin"
+    echo ""
+    echo "  2. MANGOS_PROCESS_NAME - Your world server process"
+    echo "     Run: ps aux | grep mangos"
+    echo "     Look for the process name (usually 'mangosd')"
+    echo ""
+    echo "  3. REALM_PROCESS_NAME - Your realm server process"
+    echo "     (usually 'realmd')"
+    echo ""
+    read -p "Press Enter to open .env in nano editor..."
+    nano .env
+    echo ""
+    echo "✅ Configuration saved"
 fi
 
-echo ""
-echo "Now you need to edit the .env file with your configuration:"
-echo ""
-echo "  1. MANGOS_LOG_PATH - Path to your MaNGOS logs"
-echo "     Example: /home/mangos/mangos/zero/bin"
-echo ""
-echo "  2. MANGOS_PROCESS_NAME - Your world server process"
-echo "     Run: ps aux | grep mangos"
-echo "     Look for the process name (usually 'mangosd')"
-echo ""
-echo "  3. REALM_PROCESS_NAME - Your realm server process"
-echo "     (usually 'realmd')"
-echo ""
-read -p "Press Enter to open .env in nano editor..."
-nano .env
-
-echo ""
-echo "✅ Configuration saved"
 wait_for_user
 
 # Step 2: Create data directories
@@ -84,7 +83,7 @@ echo "📁 Step 2: Creating Data Directories"
 echo "==================================================================="
 echo "Creating directories for Grafana, Prometheus, and Loki data..."
 
-mkdir -p grafana/data prometheus/data loki/data mysql-exporter
+mkdir -p grafana/data prometheus/data loki/data
 check_success
 
 # Step 3: Set permissions
@@ -128,34 +127,86 @@ fi
 
 echo "Your MaNGOS logs are at: $MANGOS_LOG_PATH"
 echo ""
-echo "Promtail needs to read these log files. You have two options:"
-echo ""
-echo "Option 1: Make logs world-readable (easier)"
-echo "  sudo chmod -R o+r $MANGOS_LOG_PATH/*.log"
-echo "  sudo chmod o+rx $MANGOS_LOG_PATH"
-echo ""
-echo "Option 2: Run Promtail as mangos user (more secure)"
-echo "  Get mangos UID: id -u mangos"
-echo "  Add to docker-compose.yaml under promtail:"
-echo "    user: \"<UID>:<GID>\""
-echo ""
-read -p "Would you like to make logs world-readable now? (Y/n): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-    echo "Setting log permissions..."
-    sudo chmod -R o+r $MANGOS_LOG_PATH/*.log 2>/dev/null
-    sudo chmod o+rx $MANGOS_LOG_PATH 2>/dev/null
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Log permissions updated"
-    else
-        echo "⚠️  Could not set permissions - you may need to do this manually"
-        echo "Run these commands:"
-        echo "  sudo chmod -R o+r $MANGOS_LOG_PATH/*.log"
-        echo "  sudo chmod o+rx $MANGOS_LOG_PATH"
-    fi
+
+# Check if logs exist
+LOG_COUNT=$(sudo sh -c "ls -1 $MANGOS_LOG_PATH/*.log 2>/dev/null" | wc -l)
+if [ $LOG_COUNT -eq 0 ]; then
+    echo "⚠️  No .log files found in $MANGOS_LOG_PATH"
+    echo "   This is OK if your server hasn't generated logs yet"
+    wait_for_user
 else
-    echo "⚠️  Skipped - you'll need to configure permissions manually"
+    echo "Found $LOG_COUNT log files"
+    
+    # Check ownership and permissions
+    FIRST_LOG=$(sudo sh -c "ls -1 $MANGOS_LOG_PATH/*.log 2>/dev/null" | head -1)
+    LOG_OWNER=$(sudo stat -c '%U' "$FIRST_LOG" 2>/dev/null)
+    LOG_GROUP=$(sudo stat -c '%G' "$FIRST_LOG" 2>/dev/null)
+    LOG_PERMS=$(sudo stat -c '%a' "$FIRST_LOG" 2>/dev/null)
+    CURRENT_USER=$(whoami)
+    
+    echo "   Owner: $LOG_OWNER:$LOG_GROUP"
+    echo "   Permissions: $LOG_PERMS"
+    echo "   Current user: $CURRENT_USER"
+    echo ""
+    
+    # Check if current user can read the logs
+    if [ -r "$FIRST_LOG" ]; then
+        echo "✅ Log files are readable by current user"
+        echo "   Promtail will be able to read them"
+    else
+        echo "⚠️  Log files are NOT readable by current user"
+        echo ""
+        
+        # Check the last digit of permissions (other's permissions)
+        OTHER_PERMS=${LOG_PERMS: -1}
+        
+        if [ "$OTHER_PERMS" -ge 4 ]; then
+            echo "✅ Logs are world-readable (other permissions: $OTHER_PERMS)"
+            echo "   Promtail container (runs as root) will be able to read them"
+        else
+            echo "Promtail needs to read these log files."
+            echo ""
+            echo "You have three options:"
+            echo ""
+            echo "Option 1: Make logs world-readable (easiest)"
+            echo "  sudo chmod -R o+r $MANGOS_LOG_PATH/*.log"
+            echo "  sudo chmod o+rx $MANGOS_LOG_PATH"
+            echo ""
+            echo "Option 2: Add current user to mangos group"
+            echo "  sudo usermod -aG $LOG_GROUP $CURRENT_USER"
+            echo "  Then logout and login again"
+            echo ""
+            echo "Option 3: Run Promtail as $LOG_OWNER user"
+            echo "  Get UID: id -u $LOG_OWNER"
+            echo "  Add to docker-compose.yaml under promtail:"
+            echo "    user: \"<UID>:<GID>\""
+            echo ""
+            read -p "Would you like to make logs world-readable now? (Y/n): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+                echo "Setting log permissions..."
+                sudo chmod -R o+r $MANGOS_LOG_PATH/*.log 2>/dev/null
+                sudo chmod o+rx $MANGOS_LOG_PATH 2>/dev/null
+                
+                if [ $? -eq 0 ]; then
+                    echo "✅ Log permissions updated"
+                    
+                    # Verify
+                    if [ -r "$FIRST_LOG" ]; then
+                        echo "✅ Verification: Logs are now readable"
+                    else
+                        echo "✅ Permissions set (Promtail running as root will be able to read them)"
+                    fi
+                else
+                    echo "❌ Could not set permissions"
+                    echo "   You may need to choose Option 2 or 3 above"
+                fi
+            else
+                echo "⚠️  Skipped - you'll need to configure permissions manually"
+                echo "   Without proper permissions, log monitoring will not work"
+            fi
+        fi
+    fi
 fi
 
 wait_for_user
@@ -219,8 +270,19 @@ echo "Starting Docker containers to detect network..."
 docker compose up -d >/dev/null 2>&1
 sleep 3
 
+# Dynamically detect the monitoring network name
+NETWORK_NAME=$(docker network ls --format '{{.Name}}' | grep monitoring-network | head -1)
+
+if [ -z "$NETWORK_NAME" ]; then
+    echo "❌ Could not detect monitoring network"
+    echo "   Expected a network ending with 'monitoring-network'"
+    exit 1
+fi
+
+echo "Detected network: $NETWORK_NAME"
+
 # Get Docker gateway IP
-GATEWAY_IP=$(docker network inspect auto-monitor_monitoring-network 2>/dev/null | grep -oP '"Gateway": "\K[^"]+' | head -1)
+GATEWAY_IP=$(docker network inspect "$NETWORK_NAME" 2>/dev/null | grep -oP '"Gateway": "\K[^"]+' | head -1)
 
 if [ -n "$GATEWAY_IP" ]; then
     echo "✅ Docker gateway IP: $GATEWAY_IP"
@@ -238,40 +300,44 @@ fi
 echo ""
 echo "Testing Docker container network access to MySQL..."
 
+# Check if firewall rule already exists first
+FIREWALL_EXISTS=false
+if sudo ufw status 2>/dev/null | grep "3306" | grep -q "$SUBNET"; then
+    FIREWALL_EXISTS=true
+    echo "✅ Firewall rule already exists for Docker network"
+fi
+
 # Simple test: can the container reach the port at all?
-# We use telnet-like behavior - if we can connect to the port, network is good
 if docker exec mysql-exporter sh -c "timeout 2 nc -z $GATEWAY_IP 3306" 2>/dev/null; then
     echo "✅ Docker containers can reach MySQL port 3306"
-    echo "   Network and firewall configuration is correct"
+    echo "   Network configuration is correct"
+elif docker exec mysql-exporter sh -c "timeout 2 wget -q --spider telnet://$GATEWAY_IP:3306" 2>/dev/null; then
+    echo "✅ Docker containers can reach MySQL port 3306"
+    echo "   Network configuration is correct"
 else
-    # nc might not be available, try a different approach
-    if docker exec mysql-exporter sh -c "timeout 2 wget -q --spider telnet://$GATEWAY_IP:3306" 2>/dev/null; then
-        echo "✅ Docker containers can reach MySQL port 3306"
-        echo "   Network and firewall configuration is correct"
+    # Tests failed, but if firewall rule exists, likely just the test commands don't work
+    if [ "$FIREWALL_EXISTS" = true ]; then
+        echo "⚠️  Network tests failed, but firewall rule exists"
+        echo "   This is likely due to missing test tools (nc/wget) in the container"
+        echo "   Proceeding anyway - if MySQL monitoring doesn't work, check logs"
     else
-        # Last resort: check if firewall rule exists and assume it works
-        if sudo ufw status 2>/dev/null | grep -q "$SUBNET.*3306"; then
-            echo "✅ Firewall rule exists for Docker network to access MySQL"
-            echo "   Assuming network configuration is correct"
-        else
-            echo "⚠️  Cannot verify Docker container network access to MySQL"
-            echo ""
-            echo "This might be a firewall issue. Docker subnet ($SUBNET) needs access to MySQL."
-            echo "Recommended firewall rule: sudo ufw allow from $SUBNET to any port 3306"
-            echo ""
-            read -p "Would you like to add this firewall rule now? (Y/n): " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-                sudo ufw allow from $SUBNET to any port 3306
-                if [ $? -eq 0 ]; then
-                    echo "✅ Firewall rule added successfully"
-                else
-                    echo "❌ Failed to add firewall rule"
-                    echo "   You may need to add it manually"
-                fi
+        echo "⚠️  Cannot verify Docker container network access to MySQL"
+        echo ""
+        echo "This might be a firewall issue. Docker subnet ($SUBNET) needs access to MySQL."
+        echo "Recommended firewall rule: sudo ufw allow from $SUBNET to any port 3306"
+        echo ""
+        read -p "Would you like to add this firewall rule now? (Y/n): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+            sudo ufw allow from $SUBNET to any port 3306
+            if [ $? -eq 0 ]; then
+                echo "✅ Firewall rule added successfully"
             else
-                echo "⚠️  Skipped - if MySQL monitoring doesn't work, add this rule manually"
+                echo "❌ Failed to add firewall rule"
+                echo "   You may need to add it manually"
             fi
+        else
+            echo "⚠️  Skipped - if MySQL monitoring doesn't work, add this rule manually"
         fi
     fi
 fi
@@ -410,6 +476,12 @@ if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
         echo ""
         echo "Creating MySQL exporter configuration..."
         
+        # Create directory if it doesn't exist, remove file if it exists as directory
+        if [ -d "mysql-exporter/.my.cnf" ]; then
+            rm -rf mysql-exporter/.my.cnf
+        fi
+        mkdir -p mysql-exporter
+        
         cat > mysql-exporter/.my.cnf << EOF
 [client]
 user=mangos_monitor
@@ -488,87 +560,6 @@ fi
 
 wait_for_user
 
-# Step 7: Verify configuration
-echo "==================================================================="
-echo "🔍 Step 7: Verifying Setup"
-echo "==================================================================="
-
-echo "Checking if MaNGOS logs exist..."
-if [ -d "$MANGOS_LOG_PATH" ]; then
-    LOG_COUNT=$(ls -1 $MANGOS_LOG_PATH/*.log 2>/dev/null | wc -l)
-    if [ $LOG_COUNT -gt 0 ]; then
-        echo "✅ Found $LOG_COUNT log files"
-        
-        # Check ownership and permissions
-        FIRST_LOG=$(ls -1 $MANGOS_LOG_PATH/*.log 2>/dev/null | head -1)
-        LOG_OWNER=$(stat -c '%U' "$FIRST_LOG" 2>/dev/null)
-        LOG_GROUP=$(stat -c '%G' "$FIRST_LOG" 2>/dev/null)
-        LOG_PERMS=$(stat -c '%a' "$FIRST_LOG" 2>/dev/null)
-        CURRENT_USER=$(whoami)
-        
-        echo "   Log owner: $LOG_OWNER:$LOG_GROUP"
-        echo "   Permissions: $LOG_PERMS"
-        echo "   Current user: $CURRENT_USER"
-        
-        # Check if current user can read the logs
-        if [ -r "$FIRST_LOG" ]; then
-            echo "   ✅ Current user can read log files"
-        else
-            echo "   ⚠️  Current user cannot read log files"
-            echo ""
-            echo "   Promtail runs as root in Docker and should be able to read them,"
-            echo "   but you may have issues if you need to access them manually."
-            echo ""
-            echo "   To allow all users to read: sudo chmod -R o+r $MANGOS_LOG_PATH/*.log"
-        fi
-        
-        # Warn if logs are owned by a different user
-        if [ "$LOG_OWNER" != "$CURRENT_USER" ] && [ "$CURRENT_USER" != "root" ]; then
-            echo ""
-            echo "   ℹ️  Note: Logs are owned by '$LOG_OWNER', you're running as '$CURRENT_USER'"
-            echo "   This is fine - Promtail container runs as root and can read them."
-        fi
-    else
-        echo "⚠️  No .log files found in $MANGOS_LOG_PATH"
-    fi
-else
-    echo "❌ Directory $MANGOS_LOG_PATH does not exist"
-    echo "   Please check your MANGOS_LOG_PATH in .env"
-    echo ""
-    echo "   Common paths:"
-    echo "   - /home/mangos/mangos/zero/bin"
-    echo "   - /opt/mangos/bin"
-    echo ""
-    read -p "   Enter the correct path or press Enter to continue: " NEW_PATH
-    if [ -n "$NEW_PATH" ] && [ -d "$NEW_PATH" ]; then
-        sed -i "s|^MANGOS_LOG_PATH=.*|MANGOS_LOG_PATH=$NEW_PATH|" .env
-        echo "   ✅ Updated MANGOS_LOG_PATH in .env"
-        source .env
-    fi
-fi
-
-echo ""
-echo "Checking if MaNGOS processes are running..."
-if [ -n "$MANGOS_PROCESS_NAME" ]; then
-    if pgrep -x "$MANGOS_PROCESS_NAME" > /dev/null; then
-        echo "✅ $MANGOS_PROCESS_NAME is running"
-    else
-        echo "⚠️  $MANGOS_PROCESS_NAME is not running"
-        echo "   This is OK if your server is currently stopped"
-    fi
-fi
-
-if [ -n "$REALM_PROCESS_NAME" ]; then
-    if pgrep -x "$REALM_PROCESS_NAME" > /dev/null; then
-        echo "✅ $REALM_PROCESS_NAME is running"
-    else
-        echo "⚠️  $REALM_PROCESS_NAME is not running"
-        echo "   This is OK if your server is currently stopped"
-    fi
-fi
-
-wait_for_user
-
 # Final summary
 echo "==================================================================="
 echo "  Setup Complete!"
@@ -590,4 +581,5 @@ echo ""
 echo "  4. Access Grafana:"
 echo "     http://localhost:3000"
 echo "     Default login: admin/admin"
+echo ""
 echo "==================================================================="
