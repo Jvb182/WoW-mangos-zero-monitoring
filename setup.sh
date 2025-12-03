@@ -299,6 +299,22 @@ echo "Detected network: $NETWORK_NAME"
 # Get Docker gateway IP
 GATEWAY_IP=$(docker network inspect "$NETWORK_NAME" 2>/dev/null | grep -oP '"Gateway": "\K[^"]+' | head -1)
 
+# After detecting GATEWAY_IP in Step 5:
+
+echo ""
+echo "Updating .env with Docker gateway IP..."
+
+# Add or update DOCKER_GATEWAY_IP in .env
+if ! grep -q "^DOCKER_GATEWAY_IP=" .env 2>/dev/null; then
+    echo "" >> .env
+    echo "# Docker Network Configuration" >> .env
+    echo "DOCKER_GATEWAY_IP=$GATEWAY_IP" >> .env
+else
+    sed -i "s|^DOCKER_GATEWAY_IP=.*|DOCKER_GATEWAY_IP=$GATEWAY_IP|" .env
+fi
+
+echo "✅ Docker gateway IP ($GATEWAY_IP) added to .env"
+
 if [ -n "$GATEWAY_IP" ]; then
     echo "✅ Docker gateway IP: $GATEWAY_IP"
     
@@ -307,9 +323,7 @@ if [ -n "$GATEWAY_IP" ]; then
     echo "   Docker subnet: $SUBNET"
 else
     echo "⚠️  Could not detect gateway IP"
-    GATEWAY_IP="172.22.0.1"
-    SUBNET="172.22.0.0/16"
-    echo "   Using defaults: gateway=$GATEWAY_IP, subnet=$SUBNET"
+    exit 1
 fi
 
 echo ""
