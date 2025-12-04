@@ -81,7 +81,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -152,7 +152,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -198,7 +198,7 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 6,
+        "w": 12,
         "x": 0,
         "y": 7
       },
@@ -220,7 +220,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -234,88 +234,41 @@
     {
       "datasource": "Loki",
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "short"
-        },
+        "defaults": {},
         "overrides": []
       },
       "gridPos": {
         "h": 6,
-        "w": 6,
-        "x": 6,
+        "w": 12,
+        "x": 12,
         "y": 7
       },
-      "id": 14,
+      "id": 4,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showControls": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Loki",
-          "expr": "sum(count_over_time({job=\"wow_server\"} |~ \"(?i)crash|segfault|assertion\" [5m]))",
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"wow_server\", filename=\"/var/log/wow/world-characters.log\"}",
+          "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Crashes/Assertions (5min)",
-      "type": "timeseries"
+      "title": "Player Login/Logout Events",
+      "type": "logs"
     },
     {
       "collapsed": false,
@@ -329,78 +282,6 @@
       "panels": [],
       "title": "Logs",
       "type": "row"
-    },
-    {
-      "datasource": "Loki",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 14
-      },
-      "id": 1,
-      "options": {
-        "dedupStrategy": "none",
-        "enableInfiniteScrolling": false,
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showControls": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": true
-      },
-      "pluginVersion": "12.4.0-19770284572",
-      "targets": [
-        {
-          "datasource": "Loki",
-          "expr": "{job=\"wow_server\"}",
-          "refId": "A"
-        }
-      ],
-      "title": "Live Server Logs",
-      "type": "logs"
-    },
-    {
-      "datasource": "Loki",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 24
-      },
-      "id": 2,
-      "options": {
-        "dedupStrategy": "none",
-        "enableInfiniteScrolling": false,
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showControls": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": true
-      },
-      "pluginVersion": "12.4.0-19770284572",
-      "targets": [
-        {
-          "datasource": "Loki",
-          "expr": "{job=\"wow_server\"} |~ \"(?i)error|fail|exception\"",
-          "refId": "A"
-        }
-      ],
-      "title": "Errors & Failures",
-      "type": "logs"
     },
     {
       "datasource": "Loki",
@@ -459,9 +340,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 34
+        "y": 14
       },
       "id": 5,
       "options": {
@@ -477,7 +358,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Loki",
@@ -549,9 +430,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 7,
-        "x": 8,
-        "y": 34
+        "w": 12,
+        "x": 12,
+        "y": 14
       },
       "id": 3,
       "options": {
@@ -567,12 +448,15 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Loki",
+          "direction": "backward",
+          "editorMode": "code",
           "expr": "sum(count_over_time({job=\"wow_server\"} |~ \"(?i)error\" [5m]))",
           "legendFormat": "Errors",
+          "queryType": "range",
           "refId": "A"
         }
       ],
@@ -582,105 +466,16 @@
     {
       "datasource": "Loki",
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 15,
-        "y": 34
-      },
-      "id": 13,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.0-19770284572",
-      "targets": [
-        {
-          "datasource": "Loki",
-          "direction": "backward",
-          "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"wow_server\"} |~ \"(?i)GM command\" [5m]))",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "GM Commands (5min)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Loki",
-      "fieldConfig": {
         "defaults": {},
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 10,
+        "w": 24,
         "x": 0,
-        "y": 42
+        "y": 22
       },
-      "id": 4,
+      "id": 1,
       "options": {
         "dedupStrategy": "none",
         "enableInfiniteScrolling": false,
@@ -693,15 +488,18 @@
         "sortOrder": "Descending",
         "wrapLogMessage": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Loki",
-          "expr": "{job=\"wow_server\"} |~ \"(?i)player.*login|player.*logout\"",
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"wow_server\", filename!=\"/var/log/wow/world-packets.log\"}",
+          "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Player Login/Logout Events",
+      "title": "Live Server Logs",
       "type": "logs"
     },
     {
@@ -711,12 +509,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 42
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 32
       },
-      "id": 15,
+      "id": 2,
       "options": {
         "dedupStrategy": "none",
         "enableInfiniteScrolling": false,
@@ -729,15 +527,174 @@
         "sortOrder": "Descending",
         "wrapLogMessage": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Loki",
-          "expr": "{job=\"wow_server\"} |~ \"(?i)GM command\"",
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"wow_server\"} |~ \"(?i)error|fail|exception\"",
+          "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "GM Activity",
+      "title": "Errors & Failures",
+      "type": "logs"
+    },
+    {
+      "datasource": "Loki",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "id": 26,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showControls": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "pluginVersion": "12.4.0-19834591820",
+      "targets": [
+        {
+          "datasource": "Loki",
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"wow_server\", filename=\"/var/log/wow/world-characters.log\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "world-characters.log",
+      "type": "logs"
+    },
+    {
+      "datasource": "Loki",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      },
+      "id": 27,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showControls": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "pluginVersion": "12.4.0-19834591820",
+      "targets": [
+        {
+          "datasource": "Loki",
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"wow_server\", filename=\"/var/log/wow/world-database.log\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "world-database.log",
+      "type": "logs"
+    },
+    {
+      "datasource": "Loki",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 62
+      },
+      "id": 28,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showControls": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "pluginVersion": "12.4.0-19834591820",
+      "targets": [
+        {
+          "datasource": "Loki",
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"wow_server\", filename=\"/var/log/wow/world-gamemaster.log\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "world-gamemaster.log",
+      "type": "logs"
+    },
+    {
+      "datasource": "Loki",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 72
+      },
+      "id": 29,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showControls": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "pluginVersion": "12.4.0-19834591820",
+      "targets": [
+        {
+          "datasource": "Loki",
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{job=\"wow_server\", filename=\"/var/log/wow/world-server.log\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "world-server.log",
       "type": "logs"
     },
     {
@@ -746,7 +703,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 82
       },
       "id": 17,
       "panels": [],
@@ -812,7 +769,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 51
+        "y": 83
       },
       "id": 19,
       "options": {
@@ -828,7 +785,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -899,7 +856,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 51
+        "y": 83
       },
       "id": 22,
       "options": {
@@ -915,7 +872,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -1004,7 +961,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 89
       },
       "id": 23,
       "options": {
@@ -1020,7 +977,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -1067,7 +1024,7 @@
         "h": 6,
         "w": 5,
         "x": 12,
-        "y": 57
+        "y": 89
       },
       "id": 21,
       "options": {
@@ -1085,7 +1042,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -1129,7 +1086,7 @@
         "h": 6,
         "w": 7,
         "x": 17,
-        "y": 57
+        "y": 89
       },
       "id": 18,
       "options": {
@@ -1149,7 +1106,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -1193,7 +1150,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 95
       },
       "id": 20,
       "options": {
@@ -1213,7 +1170,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.4.0-19770284572",
+      "pluginVersion": "12.4.0-19834591820",
       "targets": [
         {
           "datasource": "Prometheus",
@@ -1233,12 +1190,12 @@
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "WoW Server Monitoring",
   "uid": "wow-server-dashboard",
-  "version": 1
+  "version": 2
 }
