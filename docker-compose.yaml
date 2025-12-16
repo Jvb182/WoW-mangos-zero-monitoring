@@ -54,7 +54,7 @@ services:
     environment:
       - MANGOS_PROCESS_NAME=${MANGOS_PROCESS_NAME:-mangosd}
       - REALM_PROCESS_NAME=${REALM_PROCESS_NAME:-realmd}
-      - MYSQL_HOST=${MYSQL_HOST:-localhost}
+      - MYSQL_HOST=${DOCKER_GATEWAY_IP}
       - MYSQL_PORT=${MYSQL_PORT:-3306}
       - MYSQL_CHAR_DB=${MYSQL_CHAR_DB:-character0}
       - MYSQL_USER=${MYSQL_USER:-mangos_monitor}
